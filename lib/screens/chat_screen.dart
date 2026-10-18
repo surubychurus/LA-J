@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../models.dart';
 import '../services/db.dart';
+import '../services/notifs.dart';
 import '../theme.dart';
 import 'widgets.dart';
 
@@ -60,6 +61,19 @@ class ChatRoomScreen extends StatefulWidget {
 
 class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final _c = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    Notifs.salaActiva = widget.room.id;
+  }
+
+  @override
+  void dispose() {
+    if (Notifs.salaActiva == widget.room.id) Notifs.salaActiva = null;
+    _c.dispose();
+    super.dispose();
+  }
 
   void _send() {
     final text = _c.text.trim();

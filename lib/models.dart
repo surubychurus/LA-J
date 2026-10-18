@@ -116,8 +116,10 @@ class Anuncio {
   final DateTime fecha;
   final String? kuvthzaId; // null = general
   final String autor;
+  final String autorUid;
   final List<Accion> acciones;
   Anuncio(this.id, this.titulo, this.cuerpo, this.fecha, this.kuvthzaId, this.autor,
+      this.autorUid,
       [this.acciones = const []]);
 
   factory Anuncio.fromDoc(DocumentSnapshot d) {
@@ -129,6 +131,7 @@ class Anuncio {
       (m['fecha'] as Timestamp?)?.toDate() ?? DateTime.now(),
       m['kuvthzaId'],
       m['autor'] ?? '',
+      m['autorUid'] ?? '',
       [for (final a in (m['acciones'] as List? ?? const [])) Accion.fromMap(a as Map)],
     );
   }

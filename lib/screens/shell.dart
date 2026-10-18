@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
 import '../services/app_state.dart';
+import '../services/notifs.dart';
 import '../services/updater.dart';
 import 'chat_screen.dart';
 import 'home_screen.dart';
@@ -23,6 +24,14 @@ class _ShellState extends State<Shell> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => Updater.checkAndPrompt(context));
+    Notifs.sincronizar();
+    Notifs.escuchar(context.read<AppState>().user!);
+  }
+
+  @override
+  void dispose() {
+    Notifs.detener();
+    super.dispose();
   }
 
   @override

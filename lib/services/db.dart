@@ -104,6 +104,16 @@ class Db {
       .snapshots()
       .map((s) => s.docs.map(Mensaje.fromDoc).toList());
 
+  /// Solo el mensaje más reciente (barato): se usa para avisar de mensajes nuevos.
+  static Stream<Mensaje?> ultimoMensaje(String room) => _fs
+      .collection('chats')
+      .doc(room)
+      .collection('mensajes')
+      .orderBy('fecha', descending: true)
+      .limit(1)
+      .snapshots()
+      .map((s) => s.docs.isEmpty ? null : Mensaje.fromDoc(s.docs.first));
+
   static Future<void> enviar(String room, AppUser u, String texto) =>
       _fs.collection('chats').doc(room).collection('mensajes').add({
         'uid': u.uid,

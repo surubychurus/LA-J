@@ -1,7 +1,7 @@
 {
-  "obligatoria": false,
-  "apk": "https://github.com/surubychurus/LA-J/raw/main/releases/2214.apk",
-  "build": 3,
-  "version": "1.0.3",
-  "notas": "Novedades con botones de acción (enlace, calendario, llamar, WhatsApp, mapa) y pantalla para gestionarlas. Nuevo icono."
+    "version":  "1.0.4",
+    "build":  4,
+    "apk":  "https://github.com/surubychurus/LA-J/raw/main/releases/2214.apk",
+    "notas":  "Poppins sin conexión y recordatorio de los sábados a las 14:30 (¡¡TE ESPERAMOS!!).",
+    "obligatoria":  false
 }

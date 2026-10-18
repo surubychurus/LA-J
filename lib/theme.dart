@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
   static const base = Color(0xFFF2F6FF);
@@ -24,9 +23,10 @@ ThemeData buildTheme(Brightness b) {
     onSurface: onSurface,
   );
   // Museo 700 (tipografía principal de Jazit) solo existe en peso 700:
-  // se usa en títulos y etiquetas; el cuerpo va en Poppins.
-  final body = GoogleFonts.poppinsTextTheme(
-      ThemeData(brightness: b).textTheme.apply(bodyColor: onSurface, displayColor: onSurface));
+  // se usa en títulos y etiquetas; el cuerpo va en Poppins (incluida en la app, funciona sin conexión).
+  final body = ThemeData(brightness: b)
+      .textTheme
+      .apply(fontFamily: 'Poppins', bodyColor: onSurface, displayColor: onSurface);
   TextStyle? museo(TextStyle? s) =>
       s?.copyWith(fontFamily: 'Museo', fontWeight: FontWeight.w700);
   final text = body.copyWith(

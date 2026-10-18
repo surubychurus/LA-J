@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models.dart';
 import '../services/app_state.dart';
 import '../services/db.dart';
+import '../services/notifs.dart';
 import 'admin_screen.dart';
 import 'widgets.dart';
 
@@ -139,6 +140,10 @@ class ProfileScreen extends StatelessWidget {
               onTap: () => _password(context),
             ),
             const Divider(),
+            if (Notifs.soportado) ...[
+              const _RecordatorioTile(),
+              const Divider(),
+            ],
             SwitchListTile(
               secondary: const Icon(LucideIcons.moon),
               title: const Text('Tema oscuro'),
@@ -169,4 +174,34 @@ class ProfileScreen extends StatelessWidget {
       ],
     );
   }
+}
+
+class _RecordatorioTile extends StatefulWidget {
+  const _RecordatorioTile();
+  @override
+  State<_RecordatorioTile> createState() => _RecordatorioTileState();
+}
+
+class _RecordatorioTileState extends State<_RecordatorioTile> {
+  bool _on = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Notifs.recordatorioActivo().then((v) {
+      if (mounted) setState(() => _on = v);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => SwitchListTile(
+        secondary: const Icon(LucideIcons.bell),
+        title: const Text('Recordatorio del sábado'),
+        subtitle: const Text('Aviso los sábados a las 14:30'),
+        value: _on,
+        onChanged: (v) {
+          setState(() => _on = v);
+          Notifs.setRecordatorio(v);
+        },
+      );
 }
