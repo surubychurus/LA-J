@@ -1,7 +1,7 @@
-﻿{
-    "obligatoria":  false,
-    "apk":  "https://github.com/surubychurus/LA-J/raw/main/releases/2214.apk",
-    "build":  2,
-    "version":  "1.0.1",
-    "notas":  "El nombre de la app ahora es 2214."
+{
+  "obligatoria": false,
+  "apk": "https://github.com/surubychurus/LA-J/raw/main/releases/2214.apk",
+  "build": 2,
+  "version": "1.0.1",
+  "notas": "El nombre de la app ahora es 2214."
 }

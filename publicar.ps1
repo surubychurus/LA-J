@@ -18,8 +18,9 @@ flutter build apk --release
 Copy-Item build\app\outputs\flutter-apk\app-release.apk releases\2214.apk -Force
 
 # 3) actualizar version.json y subir
-@{ version = $Version; build = $build; apk = $m.apk; notas = $Notas; obligatoria = [bool]$Obligatoria } |
-  ConvertTo-Json | Set-Content version.json -Encoding utf8
+# UTF-8 SIN BOM: con BOM la app no puede leer el JSON.
+$json = [ordered]@{ version = $Version; build = $build; apk = $m.apk; notas = $Notas; obligatoria = [bool]$Obligatoria } | ConvertTo-Json
+[IO.File]::WriteAllText("$PWDersion.json", $json, (New-Object Text.UTF8Encoding($false)))
 # git escribe avisos por stderr; no deben cortar el script.
 $ErrorActionPreference = 'Continue'
 git add -A
