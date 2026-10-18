@@ -20,7 +20,11 @@ Copy-Item build\app\outputs\flutter-apk\app-release.apk releases\2214.apk -Force
 # 3) actualizar version.json y subir
 @{ version = $Version; build = $build; apk = $m.apk; notas = $Notas; obligatoria = [bool]$Obligatoria } |
   ConvertTo-Json | Set-Content version.json -Encoding utf8
+# git escribe avisos por stderr; no deben cortar el script.
+$ErrorActionPreference = 'Continue'
 git add -A
 git commit -m "Versión $Version ($build)"
+if ($LASTEXITCODE -ne 0) { throw 'git commit falló' }
 git push origin main
+if ($LASTEXITCODE -ne 0) { throw 'git push falló' }
 Write-Host "Listo: los celulares con la app van a ver la actualización al abrirla."

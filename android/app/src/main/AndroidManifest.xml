@@ -2,7 +2,7 @@
         <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
-        android:label="app_2214"
+        android:label="2214"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
