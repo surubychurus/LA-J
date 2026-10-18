@@ -1,7 +1,7 @@
 {
-    "version":  "1.0.4",
-    "build":  4,
+    "version":  "1.0.5",
+    "build":  5,
     "apk":  "https://github.com/surubychurus/LA-J/raw/main/releases/2214.apk",
-    "notas":  "Poppins sin conexión y recordatorio de los sábados a las 14:30 (¡¡TE ESPERAMOS!!).",
+    "notas":  "Avisos de anuncios y mensajes nuevos, recordatorio de los sábados y Poppins sin conexión.",
     "obligatoria":  false
 }
