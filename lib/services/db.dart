@@ -51,15 +51,30 @@ class Db {
             return a.kuvthzaId == u.kuvthzaId;
           }).toList());
 
-  static Future<void> publicar(AppUser u, String titulo, String cuerpo, String? kuvthzaId) =>
-      _fs.collection('anuncios').add({
-        'titulo': titulo.trim(),
-        'cuerpo': cuerpo.trim(),
-        'kuvthzaId': kuvthzaId,
-        'autor': u.display,
-        'autorUid': u.uid,
-        'fecha': FieldValue.serverTimestamp(),
-      });
+  /// Crea ([id] nulo) o actualiza una novedad.
+  static Future<void> guardarAnuncio(
+    AppUser u, {
+    String? id,
+    required String titulo,
+    required String cuerpo,
+    required String? kuvthzaId,
+    required List<Accion> acciones,
+  }) {
+    final data = {
+      'titulo': titulo.trim(),
+      'cuerpo': cuerpo.trim(),
+      'kuvthzaId': kuvthzaId,
+      'acciones': [for (final a in acciones) a.toMap()],
+    };
+    final col = _fs.collection('anuncios');
+    if (id != null) return col.doc(id).update(data);
+    return col.add({
+      ...data,
+      'autor': u.display,
+      'autorUid': u.uid,
+      'fecha': FieldValue.serverTimestamp(),
+    });
+  }
 
   static Future<void> borrarAnuncio(String id) => _fs.collection('anuncios').doc(id).delete();
 

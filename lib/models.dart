@@ -68,6 +68,47 @@ class AppUser {
   bool get puedeSubirFotos => esStaff;
 }
 
+enum TipoAccion { enlace, calendario, llamar, whatsapp, mapa }
+
+extension TipoAccionX on TipoAccion {
+  String get label => switch (this) {
+        TipoAccion.enlace => 'Abrir enlace',
+        TipoAccion.calendario => 'Añadir al calendario',
+        TipoAccion.llamar => 'Llamar',
+        TipoAccion.whatsapp => 'WhatsApp',
+        TipoAccion.mapa => 'Ver en el mapa',
+      };
+  static TipoAccion parse(String? s) =>
+      TipoAccion.values.firstWhere((t) => t.name == s, orElse: () => TipoAccion.enlace);
+}
+
+/// Botón con acción dentro de una novedad.
+/// [valor]: URL, teléfono, número de WhatsApp, dirección o (calendario) lugar.
+class Accion {
+  final TipoAccion tipo;
+  final String etiqueta;
+  final String valor;
+  final DateTime? inicio; // solo calendario
+  final DateTime? fin; // solo calendario
+  Accion(this.tipo, this.etiqueta, this.valor, {this.inicio, this.fin});
+
+  factory Accion.fromMap(Map m) => Accion(
+        TipoAccionX.parse(m['tipo']),
+        m['etiqueta'] ?? '',
+        m['valor'] ?? '',
+        inicio: (m['inicio'] as Timestamp?)?.toDate(),
+        fin: (m['fin'] as Timestamp?)?.toDate(),
+      );
+
+  Map<String, dynamic> toMap() => {
+        'tipo': tipo.name,
+        'etiqueta': etiqueta,
+        'valor': valor,
+        if (inicio != null) 'inicio': Timestamp.fromDate(inicio!),
+        if (fin != null) 'fin': Timestamp.fromDate(fin!),
+      };
+}
+
 class Anuncio {
   final String id;
   final String titulo;
@@ -75,7 +116,9 @@ class Anuncio {
   final DateTime fecha;
   final String? kuvthzaId; // null = general
   final String autor;
-  Anuncio(this.id, this.titulo, this.cuerpo, this.fecha, this.kuvthzaId, this.autor);
+  final List<Accion> acciones;
+  Anuncio(this.id, this.titulo, this.cuerpo, this.fecha, this.kuvthzaId, this.autor,
+      [this.acciones = const []]);
 
   factory Anuncio.fromDoc(DocumentSnapshot d) {
     final m = d.data() as Map<String, dynamic>;
@@ -86,6 +129,7 @@ class Anuncio {
       (m['fecha'] as Timestamp?)?.toDate() ?? DateTime.now(),
       m['kuvthzaId'],
       m['autor'] ?? '',
+      [for (final a in (m['acciones'] as List? ?? const [])) Accion.fromMap(a as Map)],
     );
   }
 }

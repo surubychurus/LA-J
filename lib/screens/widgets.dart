@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../models.dart';
+import '../services/acciones.dart';
 
 class AnuncioCard extends StatelessWidget {
   final Anuncio a;
@@ -42,6 +43,21 @@ class AnuncioCard extends StatelessWidget {
             if (a.cuerpo.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(a.cuerpo),
+            ],
+            if (a.acciones.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final ac in a.acciones)
+                  FilledButton.tonalIcon(
+                    style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
+                    icon: Icon(iconoAccion(ac.tipo), size: 16),
+                    label: Text(ac.etiqueta.isEmpty ? ac.tipo.label : ac.etiqueta),
+                    onPressed: () async {
+                      final ok = await ejecutarAccion(ac, a);
+                      if (!ok && context.mounted) snack(context, 'No se pudo abrir');
+                    },
+                  ),
+              ]),
             ],
           ],
         ),
@@ -126,3 +142,11 @@ class Initial extends StatelessWidget {
     );
   }
 }
+
+IconData iconoAccion(TipoAccion t) => switch (t) {
+      TipoAccion.enlace => LucideIcons.externalLink,
+      TipoAccion.calendario => LucideIcons.calendarPlus,
+      TipoAccion.llamar => LucideIcons.phone,
+      TipoAccion.whatsapp => LucideIcons.messageCircle,
+      TipoAccion.mapa => LucideIcons.mapPin,
+    };

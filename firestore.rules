@@ -26,7 +26,12 @@ service cloud.firestore {
       allow read: if approved();
       allow create: if staff()
         && (me().rol == 'hanaga' || request.resource.data.kuvthzaId == me().kuvthzaId);
-      allow delete: if hanaga();
+      // Hanagá gestiona todas; el madrij solo las de su kuvthzá.
+      allow update: if hanaga()
+        || (staff() && resource.data.kuvthzaId == me().kuvthzaId
+            && request.resource.data.kuvthzaId == me().kuvthzaId);
+      allow delete: if hanaga()
+        || (staff() && resource.data.kuvthzaId == me().kuvthzaId);
     }
 
     match /fotos/{id} { allow read: if approved(); allow create: if staff(); }

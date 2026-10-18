@@ -1,7 +1,7 @@
 {
   "obligatoria": false,
   "apk": "https://github.com/surubychurus/LA-J/raw/main/releases/2214.apk",
-  "build": 2,
-  "version": "1.0.1",
-  "notas": "El nombre de la app ahora es 2214."
+  "build": 3,
+  "version": "1.0.3",
+  "notas": "Novedades con botones de acción (enlace, calendario, llamar, WhatsApp, mapa) y pantalla para gestionarlas. Nuevo icono."
 }
