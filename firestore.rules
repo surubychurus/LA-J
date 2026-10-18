@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function me() { return get(/databases/$(db)/documents/users/$(request.auth.uid)).data; }
+    function signed() { return request.auth != null; }
+    function approved() { return signed() && exists(/databases/$(db)/documents/users/$(request.auth.uid)) && me().aprobado == true; }
+    function hanaga() { return approved() && me().rol == 'hanaga'; }
+    function staff() { return approved() && (me().rol == 'madrij' || me().rol == 'hanaga'); }
+
+    // Usuarios: cada uno crea su doc como janij sin aprobar; solo la Hanagá
+    // cambia rol / kuvthzá / aprobación (y no puede tocar a otra Hanagá).
+    match /users/{uid} {
+      allow read: if signed();
+      allow create: if request.auth.uid == uid
+        && request.resource.data.rol == 'janij'
+        && request.resource.data.aprobado == false;
+      allow update: if (request.auth.uid == uid
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['rol', 'kuvthzaId', 'aprobado']))
+        || (hanaga() && resource.data.rol != 'hanaga' && request.resource.data.rol != 'hanaga');
+    }
+
+    match /kuvthzot/{id} { allow read: if approved(); allow write: if hanaga(); }
+    match /config/{id}  { allow read: if approved(); allow write: if hanaga(); }
+
+    match /anuncios/{id} {
+      allow read: if approved();
+      allow create: if staff()
+        && (me().rol == 'hanaga' || request.resource.data.kuvthzaId == me().kuvthzaId);
+      allow delete: if hanaga();
+    }
+
+    match /fotos/{id} { allow read: if approved(); allow create: if staff(); }
+
+    // Chats: acceso según rol (espeja chatsFor() en models.dart).
+    match /chats/{room}/mensajes/{m} {
+      function canChat() {
+        return approved() && (
+          (room == 'bogrut'   && me().rol in ['boguer', 'madrij', 'hanaga']) ||
+          (room == 'banquito' && me().rol in ['boguer', 'hanaga']) ||
+          (room == 'hanaga'   && me().rol == 'hanaga') ||
+          (room == 'k_' + me().kuvthzaId && me().rol in ['janij', 'madrij']) ||
+          (room == 'km_' + me().kuvthzaId && me().rol == 'madrij'));
+      }
+      allow read: if canChat();
+      allow create: if canChat() && request.resource.data.uid == request.auth.uid;
+    }
+  }
+}

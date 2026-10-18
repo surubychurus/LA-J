@@ -1,0 +1,7 @@
+{
+  "version": "1.0.0",
+  "build": 1,
+  "apk": "https://github.com/surubychurus/LA-J/raw/main/releases/2214.apk",
+  "notas": "Primera versión.",
+  "obligatoria": false
+}

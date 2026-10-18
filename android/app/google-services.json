@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "899062970505",
+    "project_id": "jazit2214",
+    "storage_bucket": "jazit2214.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:899062970505:android:e1de2add91bc695ea2ae58",
+        "android_client_info": {
+          "package_name": "com.jazit.app_2214"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "899062970505-o599bh250do4o5j09n5kv5r9v7e9661m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPegpsTFz1Lk4IHTAQEjU4LGscaE3D0iE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "899062970505-o599bh250do4o5j09n5kv5r9v7e9661m.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "899062970505-bqres27cj4qlgs382atrrg77shd79api.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.jazit.app2214"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
