@@ -15,8 +15,20 @@ enum EstadoArduino { desconectado, conectando, listo, error }
 /// Nunca lanza al mandar: si no hay Arduino, solo deja un aviso en [mensaje]
 /// para que la venta siga funcionando.
 class ArduinoService extends ChangeNotifier {
-  ArduinoService({ArduinoTransport? transport, this.esperaReady = const Duration(seconds: 4)})
-      : _t = transport ?? crearTransporte();
+  ArduinoService({
+    ArduinoTransport? transport,
+    this.esperaReady = const Duration(seconds: 4),
+    this.formatoLibro = _formatoLibroPorDefecto,
+  }) : _t = transport ?? crearTransporte();
+
+  /// Línea que se manda al Arduino al mostrar un libro. Si tu sketch espera
+  /// otro formato, pasa aquí tu propia función al crear el servicio:
+  ///   ArduinoService(formatoLibro: (l) => '${ArduinoService.lcd(l.titulo)}|${l.precio}');
+  final String Function(Libro) formatoLibro;
+
+  // Todas las líneas son `arriba|abajo` (fila 1 | fila 2 de la pantalla).
+  static String _formatoLibroPorDefecto(Libro l) =>
+      '${lcd(l.titulo)}|${l.precio.toStringAsFixed(2)}';
 
   final ArduinoTransport _t;
   final Duration esperaReady;
@@ -127,9 +139,8 @@ class ArduinoService extends ChangeNotifier {
   // ---- Mensajes de la librería ----
   // Para cambiar el formato que entiende tu sketch, edita SOLO estas funciones.
 
-  /// `LIBRO|titulo|precio|stock`  (título ya limpio para LCD de 16 columnas)
-  Future<bool> mostrarLibro(Libro l) =>
-      enviar('LIBRO|${lcd(l.titulo)}|${l.precio.toStringAsFixed(2)}|${l.stock}');
+  /// `titulo|precio`  (título arriba, precio abajo; sin stock)
+  Future<bool> mostrarLibro(Libro l) => enviar(formatoLibro(l));
 
   /// `TOTAL|monto`
   Future<bool> mostrarTotal(double total) => enviar('TOTAL|${total.toStringAsFixed(2)}');
@@ -137,8 +148,8 @@ class ArduinoService extends ChangeNotifier {
   /// `GRACIAS|monto`
   Future<bool> ventaCobrada(double total) => enviar('GRACIAS|${total.toStringAsFixed(2)}');
 
-  /// `MSG|texto`
-  Future<bool> mostrarMensaje(String texto) => enviar('MSG|${lcd(texto)}');
+  /// `texto|` (solo la fila de arriba)
+  Future<bool> mostrarMensaje(String texto) => enviar('${lcd(texto)}|');
 
   /// Texto seguro para una LCD: sin tildes, sin el separador `|`, ni saltos de línea.
   static String lcd(String s, [int max = 16]) {

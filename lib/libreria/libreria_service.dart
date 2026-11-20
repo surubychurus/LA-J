@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'db/libreria_db.dart';
 import 'isbn.dart';
 import 'models.dart';
 
@@ -9,16 +10,66 @@ class LibreriaException implements Exception {
   String toString() => mensaje;
 }
 
-/// Catálogo + carrito + ventas, en memoria.
-/// Para persistir, reemplazar los mapas por Firestore/SQLite usando
-/// [Libro.toMap] / [Libro.fromMap] (la UI no cambia).
+/// Catálogo + carrito + ventas.
+/// Trabaja en memoria (rápido y síncrono) y, si se le conecta una
+/// [LibreriaDb] con [conectarDb], cada cambio se guarda también en SQLite.
 class LibreriaService extends ChangeNotifier {
   final Map<String, Libro> _catalogo = {};
   final List<ItemVenta> _carrito = [];
   final List<Venta> _ventas = [];
 
   LibreriaService({bool conDatosDeEjemplo = false}) {
-    if (conDatosDeEjemplo) _cargarEjemplo();
+    if (conDatosDeEjemplo) cargarEjemplos();
+  }
+
+  // ---- Persistencia (SQLite) ----
+  LibreriaDb? _db;
+  Future<void> _cola = Future.value();
+  bool _muerto = false;
+
+  /// Último error al guardar en la base de datos (null si todo bien).
+  String? errorDb;
+
+  /// Se completa cuando terminaron todos los guardados pendientes.
+  Future<void> get pendientes => _cola;
+
+  /// Carga catálogo y ventas desde la base. Si está vacía y [sembrar], la
+  /// llena con los libros de ejemplo.
+  Future<void> conectarDb(LibreriaDb db, {bool sembrar = false}) async {
+    _db = null; // sin escribir mientras se carga
+    var libros = await db.libros();
+    if (libros.isEmpty && sembrar) {
+      for (final l in ejemplos) {
+        await db.guardarLibro(l);
+      }
+      libros = await db.libros();
+    }
+    _catalogo
+      ..clear()
+      ..addEntries(libros.map((l) => MapEntry(l.isbn, l)));
+    _ventas
+      ..clear()
+      ..addAll(await db.ventas());
+    _carrito.clear();
+    _db = db;
+    errorDb = null;
+    notifyListeners();
+  }
+
+  /// Los guardados se hacen de a uno y en orden; un fallo no frena la venta.
+  void _persistir(Future<void> Function(LibreriaDb db) op) {
+    final db = _db;
+    if (db == null) return;
+    _cola = _cola.then((_) => op(db)).catchError((Object e) {
+      errorDb = 'No se pudo guardar en la base de datos: $e';
+      if (!_muerto) notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _muerto = true;
+    super.dispose();
   }
 
   // ---- Catálogo ----
@@ -50,7 +101,9 @@ class LibreriaService extends ChangeNotifier {
     if (_catalogo.containsKey(isbn)) {
       throw LibreriaException('Ya existe un libro con el código $isbn');
     }
-    _catalogo[isbn] = libro.copyWith(isbn: isbn);
+    final guardado = libro.copyWith(isbn: isbn);
+    _catalogo[isbn] = guardado;
+    _persistir((db) => db.guardarLibro(guardado));
     notifyListeners();
   }
 
@@ -64,7 +117,9 @@ class LibreriaService extends ChangeNotifier {
       throw LibreriaException('Ya existe un libro con el código $isbn');
     }
     _catalogo.remove(isbnOriginal);
-    _catalogo[isbn] = nuevo.copyWith(isbn: isbn);
+    final guardado = nuevo.copyWith(isbn: isbn);
+    _catalogo[isbn] = guardado;
+    _persistir((db) => db.reemplazarLibro(isbnOriginal, guardado));
     // Mantener el carrito coherente con los datos nuevos.
     for (var i = 0; i < _carrito.length; i++) {
       if (_carrito[i].libro.isbn == isbnOriginal) {
@@ -82,6 +137,7 @@ class LibreriaService extends ChangeNotifier {
 
   void eliminarLibro(String isbn) {
     _catalogo.remove(isbn);
+    _persistir((db) => db.eliminarLibro(isbn));
     _carrito.removeWhere((i) => i.libro.isbn == isbn);
     notifyListeners();
   }
@@ -91,7 +147,9 @@ class LibreriaService extends ChangeNotifier {
     final l = _catalogo[isbn];
     if (l == null) throw LibreriaException('El libro no existe');
     if (unidades <= 0) throw LibreriaException('Cantidad inválida');
-    _catalogo[isbn] = l.copyWith(stock: l.stock + unidades);
+    final nuevo = l.copyWith(stock: l.stock + unidades);
+    _catalogo[isbn] = nuevo;
+    _persistir((db) => db.guardarLibro(nuevo));
     notifyListeners();
   }
 
@@ -156,19 +214,23 @@ class LibreriaService extends ChangeNotifier {
     }
     final venta = Venta(DateTime.now(), List.of(_carrito));
     _ventas.add(venta);
+    _persistir((db) => db.registrarVenta(venta));
     _carrito.clear();
     notifyListeners();
     return venta;
   }
 
-  void _cargarEjemplo() {
-    const datos = [
-      Libro(isbn: '9780306406157', titulo: 'Cien años de soledad', autor: 'Gabriel García Márquez', categoria: 'Novela', precio: 18.5, stock: 8),
-      Libro(isbn: '9780140449136', titulo: 'El Quijote', autor: 'Miguel de Cervantes', categoria: 'Clásicos', precio: 22.0, stock: 5),
-      Libro(isbn: '9780451524935', titulo: '1984', autor: 'George Orwell', categoria: 'Ficción', precio: 14.9, stock: 12),
-    ];
-    for (final l in datos) {
-      if (Isbn.esEan13Valido(l.isbn)) _catalogo[l.isbn] = l;
+  static const ejemplos = [
+    Libro(isbn: '9780306406157', titulo: 'Cien años de soledad', autor: 'Gabriel García Márquez', categoria: 'Novela', precio: 18.5, stock: 8),
+    Libro(isbn: '9780140449136', titulo: 'El Quijote', autor: 'Miguel de Cervantes', categoria: 'Clásicos', precio: 22.0, stock: 5),
+    Libro(isbn: '9780451524935', titulo: '1984', autor: 'George Orwell', categoria: 'Ficción', precio: 14.9, stock: 12),
+  ];
+
+  /// Carga los libros de ejemplo solo en memoria (sin base de datos).
+  void cargarEjemplos() {
+    for (final l in ejemplos) {
+      _catalogo[l.isbn] = l;
     }
+    notifyListeners();
   }
 }

@@ -71,7 +71,7 @@ void main() {
     await pump();
     await a.mostrarLibro(const Libro(
         isbn: '9780306406157', titulo: 'Cien años de soledad', precio: 18.5, stock: 8));
-    expect(t.enviado.single, 'LIBRO|Cien anos de sol|18.50|8\n');
+    expect(t.enviado.single, 'Cien anos de sol|18.50\n');
   });
 
   test('sin conexión no lanza y avisa', () async {

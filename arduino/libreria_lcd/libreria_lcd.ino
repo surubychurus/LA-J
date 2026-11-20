@@ -2,7 +2,9 @@
    Hardware supuesto: Arduino Uno + LCD 16x2 con módulo I2C (0x27) + zumbador en pin 8.
    Librería: "LiquidCrystal I2C". AJUSTA dirección/pines a tu montaje.
 
-   La app manda:  LIBRO|titulo|precio|stock   TOTAL|monto   GRACIAS|monto   MSG|texto
+   La app manda SIEMPRE una linea  arriba|abajo  (fila 1 | fila 2 de la pantalla):
+     Cuentos de la se|18.50     TOTAL|40.00     GRACIAS|40.00     NO ENCONTRADO|
+   Si la fila de abajo es un numero se le antepone "$".
    El Arduino responde: READY (al arrancar), OK (por cada línea), ERR:LCD (si no hay pantalla) */
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
@@ -28,20 +30,19 @@ String campo(const String &s, int n) {
   return fin < 0 ? s.substring(ini) : s.substring(ini, fin);
 }
 
+bool esNumero(const String &s) {
+  if (s.length() == 0) return false;
+  for (unsigned i = 0; i < s.length(); i++)
+    if (!isDigit(s[i]) && s[i] != '.') return false;
+  return true;
+}
+
 void procesar(const String &s) {
-  String cmd = campo(s, 0);
-  if (cmd == "LIBRO") {
-    mostrar(campo(s, 1), "$" + campo(s, 2) + " st:" + campo(s, 3));
-    tone(PIN_BUZZER, 2000, 80);
-  } else if (cmd == "TOTAL") {
-    mostrar("TOTAL", "$" + campo(s, 1));
-  } else if (cmd == "GRACIAS") {
-    mostrar("GRACIAS!", "$" + campo(s, 1));
-    tone(PIN_BUZZER, 1500, 200);
-  } else if (cmd == "MSG") {
-    mostrar(campo(s, 1), "");
-    tone(PIN_BUZZER, 300, 300);
-  }
+  String arriba = campo(s, 0);
+  String abajo = campo(s, 1);
+  if (esNumero(abajo)) abajo = "$" + abajo;
+  mostrar(arriba, abajo);
+  tone(PIN_BUZZER, arriba == "GRACIAS" ? 1500 : 2000, 80);
   Serial.println(lcdOk ? "OK" : "ERR:LCD");
 }
 

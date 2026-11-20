@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'arduino/arduino_service.dart';
+import 'db/libreria_db.dart';
 import 'escaner_screen.dart';
 import 'isbn.dart';
 import 'lector_usb.dart';
@@ -17,17 +18,34 @@ class LibreriaScreen extends StatefulWidget {
 }
 
 class _LibreriaScreenState extends State<LibreriaScreen> with SingleTickerProviderStateMixin {
-  final _service = LibreriaService(conDatosDeEjemplo: true);
+  final _service = LibreriaService();
   final _arduino = ArduinoService();
   late final _tabs = TabController(length: 3, vsync: this);
   final _catalogoKey = GlobalKey<_CatalogoTabState>();
   final _precioKey = GlobalKey<_PrecioTabState>();
   late final _lector = LectorUsb(alLeer: _alEscanearUsb);
 
+  LibreriaDb? _db;
+  bool _cargando = true;
+  String? _errorDb;
+
   @override
   void initState() {
     super.initState();
     _lector.activar();
+    _iniciarDb();
+  }
+
+  Future<void> _iniciarDb() async {
+    try {
+      final db = await LibreriaDb.abrir();
+      await _service.conectarDb(db, sembrar: true);
+      _db = db;
+    } catch (e) {
+      _errorDb = 'No se pudo abrir la base de datos ($e). Los datos no se guardarán.';
+      _service.cargarEjemplos();
+    }
+    if (mounted) setState(() => _cargando = false);
   }
 
   /// Llega el código del lector USB: se usa según la pestaña activa.
@@ -49,6 +67,8 @@ class _LibreriaScreenState extends State<LibreriaScreen> with SingleTickerProvid
     _lector.desactivar();
     _tabs.dispose();
     _arduino.dispose();
+    final db = _db;
+    _service.pendientes.whenComplete(() => db?.cerrar());
     _service.dispose();
     super.dispose();
   }
@@ -64,7 +84,22 @@ class _LibreriaScreenState extends State<LibreriaScreen> with SingleTickerProvid
             Tab(icon: Icon(Icons.sell), text: 'Precio'),
           ]),
         ),
-        body: Column(children: [
+        body: _cargando
+            ? const Center(child: CircularProgressIndicator())
+            : Column(children: [
+          ListenableBuilder(
+            listenable: _service,
+            builder: (context, _) {
+              final e = _errorDb ?? _service.errorDb;
+              if (e == null) return const SizedBox.shrink();
+              return Container(
+                width: double.infinity,
+                color: Colors.red.withValues(alpha: 0.12),
+                padding: const EdgeInsets.all(8),
+                child: Text(e, style: const TextStyle(fontSize: 12)),
+              );
+            },
+          ),
           _BarraArduino(arduino: _arduino),
           Expanded(
             child: TabBarView(controller: _tabs, children: [
