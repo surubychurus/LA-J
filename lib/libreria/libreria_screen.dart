@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'arduino/arduino_service.dart';
 import 'escaner_screen.dart';
 import 'libreria_service.dart';
 import 'libro_form.dart';
@@ -15,9 +16,11 @@ class LibreriaScreen extends StatefulWidget {
 
 class _LibreriaScreenState extends State<LibreriaScreen> {
   final _service = LibreriaService(conDatosDeEjemplo: true);
+  final _arduino = ArduinoService();
 
   @override
   void dispose() {
+    _arduino.dispose();
     _service.dispose();
     super.dispose();
   }
@@ -35,10 +38,15 @@ class _LibreriaScreenState extends State<LibreriaScreen> {
             Tab(icon: Icon(Icons.sell), text: 'Precio'),
           ]),
         ),
-        body: TabBarView(children: [
-          _CatalogoTab(service: _service),
-          _VentaTab(service: _service),
-          _PrecioTab(service: _service),
+        body: Column(children: [
+          _BarraArduino(arduino: _arduino),
+          Expanded(
+            child: TabBarView(children: [
+              _CatalogoTab(service: _service),
+              _VentaTab(service: _service, arduino: _arduino),
+              _PrecioTab(service: _service, arduino: _arduino),
+            ]),
+          ),
         ]),
       ),
     );
@@ -152,13 +160,16 @@ class _CatalogoTabState extends State<_CatalogoTab> {
 // ---------------- Venta ----------------
 class _VentaTab extends StatelessWidget {
   final LibreriaService service;
-  const _VentaTab({required this.service});
+  final ArduinoService arduino;
+  const _VentaTab({required this.service, required this.arduino});
 
   Future<void> _escanearYAgregar(BuildContext context) async {
     final code = await _escanear(context);
     if (code == null || !context.mounted) return;
     try {
       service.agregarAlCarrito(code);
+      final libro = service.buscarPorCodigo(code);
+      if (libro != null) arduino.mostrarLibro(libro);
     } on LibreriaException catch (e) {
       _aviso(context, e.mensaje);
     }
@@ -167,6 +178,7 @@ class _VentaTab extends StatelessWidget {
   void _cobrar(BuildContext context) {
     try {
       final v = service.cobrar();
+      arduino.ventaCobrada(v.total);
       _aviso(context, 'Venta registrada: ${v.unidades} uds · ${_dinero(v.total)}');
     } on LibreriaException catch (e) {
       _aviso(context, e.mensaje);
@@ -234,7 +246,8 @@ class _VentaTab extends StatelessWidget {
 // ---------------- Consulta de precio ----------------
 class _PrecioTab extends StatefulWidget {
   final LibreriaService service;
-  const _PrecioTab({required this.service});
+  final ArduinoService arduino;
+  const _PrecioTab({required this.service, required this.arduino});
   @override
   State<_PrecioTab> createState() => _PrecioTabState();
 }
@@ -247,6 +260,11 @@ class _PrecioTabState extends State<_PrecioTab> {
     final code = await _escanear(context);
     if (code == null) return;
     final l = widget.service.buscarPorCodigo(code);
+    if (l != null) {
+      widget.arduino.mostrarLibro(l);
+    } else {
+      widget.arduino.mostrarMensaje('NO ENCONTRADO');
+    }
     setState(() {
       _libro = l;
       _mensaje = l == null ? 'No encontrado en el catálogo ($code)' : null;
@@ -278,6 +296,41 @@ class _PrecioTabState extends State<_PrecioTab> {
           ),
         ]),
       ),
+    );
+  }
+}
+
+// ---------------- Barra de estado del Arduino ----------------
+class _BarraArduino extends StatelessWidget {
+  final ArduinoService arduino;
+  const _BarraArduino({required this.arduino});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: arduino,
+      builder: (context, _) {
+        final e = arduino.estado;
+        final color = switch (e) {
+          EstadoArduino.listo => Colors.green,
+          EstadoArduino.error => Colors.red,
+          EstadoArduino.conectando => Colors.orange,
+          EstadoArduino.desconectado => Colors.grey,
+        };
+        return Container(
+          color: color.withValues(alpha: 0.12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(children: [
+            Icon(Icons.usb, color: color, size: 20),
+            const SizedBox(width: 8),
+            Expanded(child: Text(arduino.mensaje, style: const TextStyle(fontSize: 12))),
+            TextButton(
+              onPressed: e == EstadoArduino.conectando ? null : arduino.conectar,
+              child: Text(arduino.conectado ? 'Reconectar' : 'Conectar Arduino'),
+            ),
+          ]),
+        );
+      },
     );
   }
 }
