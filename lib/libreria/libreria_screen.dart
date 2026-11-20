@@ -42,7 +42,10 @@ class _LibreriaScreenState extends State<LibreriaScreen> with SingleTickerProvid
       await _service.conectarDb(db, sembrar: true);
       _db = db;
     } catch (e) {
-      _errorDb = 'No se pudo abrir la base de datos ($e). Los datos no se guardarán.';
+      final pista = e.toString().contains('wasm')
+          ? ' Falta web/sqlite3.wasm: corre "dart run sqflite_common_ffi_web:setup" y reinicia flutter run.'
+          : '';
+      _errorDb = 'No se pudo abrir la base de datos ($e). Los datos no se guardarán.$pista';
       _service.cargarEjemplos();
     }
     if (mounted) setState(() => _cargando = false);
