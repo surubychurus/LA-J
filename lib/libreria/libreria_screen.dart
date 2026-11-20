@@ -399,14 +399,27 @@ class _BarraArduino extends StatelessWidget {
         return Container(
           color: color.withValues(alpha: 0.12),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Row(children: [
-            Icon(Icons.usb, color: color, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(arduino.mensaje, style: const TextStyle(fontSize: 12))),
-            TextButton(
-              onPressed: e == EstadoArduino.conectando ? null : arduino.conectar,
-              child: Text(arduino.conectado ? 'Reconectar' : 'Conectar Arduino'),
-            ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(Icons.usb, color: color, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text(arduino.mensaje, style: const TextStyle(fontSize: 12))),
+              if (arduino.conectado)
+                TextButton(
+                  onPressed: () => arduino.mostrarLibro(
+                      const Libro(isbn: '', titulo: 'Prueba', precio: 12.5)),
+                  child: const Text('Probar pantalla'),
+                ),
+              TextButton(
+                onPressed: e == EstadoArduino.conectando ? null : arduino.conectar,
+                child: Text(arduino.conectado ? 'Reconectar' : 'Conectar Arduino'),
+              ),
+            ]),
+            if (arduino.ultimoEnviado != null || arduino.ultimoRecibido != null)
+              Text(
+                'Enviado: ${arduino.ultimoEnviado ?? '-'}   ·   Recibido: ${arduino.ultimoRecibido ?? '-'}',
+                style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+              ),
           ]),
         );
       },

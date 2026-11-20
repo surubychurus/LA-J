@@ -36,6 +36,10 @@ class ArduinoService extends ChangeNotifier {
   EstadoArduino estado = EstadoArduino.desconectado;
   String mensaje = 'Arduino no conectado.';
 
+  /// Última línea mandada / recibida (para diagnosticar la pantalla).
+  String? ultimoEnviado;
+  String? ultimoRecibido;
+
   StreamSubscription<dynamic>? _subDatos;
   StreamSubscription<void>? _subDesc;
   Timer? _timerReady;
@@ -96,6 +100,10 @@ class ArduinoService extends ChangeNotifier {
   }
 
   void _procesar(String linea) {
+    if (linea.isNotEmpty) {
+      ultimoRecibido = linea;
+      notifyListeners();
+    }
     if (linea == 'READY' || linea == 'OK') {
       _timerReady?.cancel();
       if (estado != EstadoArduino.listo || mensaje != 'Arduino conectado. Ya se puede escanear.') {
@@ -125,6 +133,8 @@ class ArduinoService extends ChangeNotifier {
     }
     try {
       await _t.escribir(Uint8List.fromList(utf8.encode('$linea\n')));
+      ultimoEnviado = linea;
+      notifyListeners();
       return true;
     } catch (e) {
       final desenchufado = _desenchufado;
