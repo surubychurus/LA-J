@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'lector_usb.dart';
 
 /// Abre la cámara y devuelve (Navigator.pop) el primer código leído.
 /// En web/escritorio sin cámara se puede escribir el código a mano; los
@@ -19,6 +20,13 @@ class _EscanerScreenState extends State<EscanerScreen> {
   );
   final _manual = TextEditingController();
   bool _listo = false;
+  late final _usb = LectorUsb(alLeer: _devolver);
+
+  @override
+  void initState() {
+    super.initState();
+    _usb.activar();
+  }
 
   void _devolver(String code) {
     if (_listo) return;
@@ -28,6 +36,7 @@ class _EscanerScreenState extends State<EscanerScreen> {
 
   @override
   void dispose() {
+    _usb.desactivar();
     _controller.dispose();
     _manual.dispose();
     super.dispose();

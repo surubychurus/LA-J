@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'arduino/arduino_service.dart';
 import 'escaner_screen.dart';
+import 'isbn.dart';
+import 'lector_usb.dart';
 import 'libreria_service.dart';
 import 'libro_form.dart';
 import 'models.dart';
@@ -14,12 +16,38 @@ class LibreriaScreen extends StatefulWidget {
   State<LibreriaScreen> createState() => _LibreriaScreenState();
 }
 
-class _LibreriaScreenState extends State<LibreriaScreen> {
+class _LibreriaScreenState extends State<LibreriaScreen> with SingleTickerProviderStateMixin {
   final _service = LibreriaService(conDatosDeEjemplo: true);
   final _arduino = ArduinoService();
+  late final _tabs = TabController(length: 3, vsync: this);
+  final _catalogoKey = GlobalKey<_CatalogoTabState>();
+  final _precioKey = GlobalKey<_PrecioTabState>();
+  late final _lector = LectorUsb(alLeer: _alEscanearUsb);
+
+  @override
+  void initState() {
+    super.initState();
+    _lector.activar();
+  }
+
+  /// Llega el código del lector USB: se usa según la pestaña activa.
+  /// Se ignora si hay otra pantalla/diálogo encima (p. ej. el formulario).
+  void _alEscanearUsb(String code) {
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
+    switch (_tabs.index) {
+      case 0:
+        _catalogoKey.currentState?.alEscanear(code);
+      case 1:
+        _VentaTab.agregarCodigo(context, _service, _arduino, code);
+      case 2:
+        _precioKey.currentState?.consultarCodigo(code);
+    }
+  }
 
   @override
   void dispose() {
+    _lector.desactivar();
+    _tabs.dispose();
     _arduino.dispose();
     _service.dispose();
     super.dispose();
@@ -27,12 +55,10 @@ class _LibreriaScreenState extends State<LibreriaScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
+    return Scaffold(
         appBar: AppBar(
           title: const Text('Librería'),
-          bottom: const TabBar(tabs: [
+          bottom: TabBar(controller: _tabs, tabs: const [
             Tab(icon: Icon(Icons.menu_book), text: 'Catálogo'),
             Tab(icon: Icon(Icons.point_of_sale), text: 'Venta'),
             Tab(icon: Icon(Icons.sell), text: 'Precio'),
@@ -41,14 +67,13 @@ class _LibreriaScreenState extends State<LibreriaScreen> {
         body: Column(children: [
           _BarraArduino(arduino: _arduino),
           Expanded(
-            child: TabBarView(children: [
-              _CatalogoTab(service: _service),
+            child: TabBarView(controller: _tabs, children: [
+              _CatalogoTab(key: _catalogoKey, service: _service),
               _VentaTab(service: _service, arduino: _arduino),
-              _PrecioTab(service: _service, arduino: _arduino),
+              _PrecioTab(key: _precioKey, service: _service, arduino: _arduino),
             ]),
           ),
         ]),
-      ),
     );
   }
 }
@@ -64,7 +89,7 @@ Future<String?> _escanear(BuildContext c) =>
 // ---------------- Catálogo ----------------
 class _CatalogoTab extends StatefulWidget {
   final LibreriaService service;
-  const _CatalogoTab({required this.service});
+  const _CatalogoTab({super.key, required this.service});
   @override
   State<_CatalogoTab> createState() => _CatalogoTabState();
 }
@@ -72,9 +97,18 @@ class _CatalogoTab extends StatefulWidget {
 class _CatalogoTabState extends State<_CatalogoTab> {
   String _q = '';
 
-  Future<void> _nuevo() async {
+  /// Código leído por el lector USB: si existe se edita, si no se abre "añadir" con el código puesto.
+  Future<void> alEscanear(String code) async {
+    final libro = widget.service.buscarPorCodigo(code);
+    if (libro != null) return _editar(libro);
+    final isbn = Isbn.normalizar(code);
+    if (isbn == null) return _aviso(context, 'Código inválido: $code');
+    await _nuevo(isbn: isbn);
+  }
+
+  Future<void> _nuevo({String? isbn}) async {
     final libro = await Navigator.of(context)
-        .push<Libro>(MaterialPageRoute(builder: (_) => const LibroForm()));
+        .push<Libro>(MaterialPageRoute(builder: (_) => LibroForm(isbnInicial: isbn)));
     if (libro == null || !mounted) return;
     try {
       widget.service.agregarLibro(libro);
@@ -113,7 +147,7 @@ class _CatalogoTabState extends State<_CatalogoTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _nuevo,
+        onPressed: () => _nuevo(),
         icon: const Icon(Icons.add),
         label: const Text('Añadir libro'),
       ),
@@ -166,6 +200,12 @@ class _VentaTab extends StatelessWidget {
   Future<void> _escanearYAgregar(BuildContext context) async {
     final code = await _escanear(context);
     if (code == null || !context.mounted) return;
+    agregarCodigo(context, service, arduino, code);
+  }
+
+  /// Agrega al carrito el libro de un código (cámara o lector USB).
+  static void agregarCodigo(
+      BuildContext context, LibreriaService service, ArduinoService arduino, String code) {
     try {
       service.agregarAlCarrito(code);
       final libro = service.buscarPorCodigo(code);
@@ -205,7 +245,7 @@ class _VentaTab extends StatelessWidget {
           ),
           Expanded(
             child: items.isEmpty
-                ? const Center(child: Text('Escanea un libro para empezar la venta'))
+                ? const Center(child: Text('Escanea con el lector USB o la cámara para empezar la venta'))
                 : ListView(children: [
                     for (final i in items)
                       ListTile(
@@ -247,7 +287,7 @@ class _VentaTab extends StatelessWidget {
 class _PrecioTab extends StatefulWidget {
   final LibreriaService service;
   final ArduinoService arduino;
-  const _PrecioTab({required this.service, required this.arduino});
+  const _PrecioTab({super.key, required this.service, required this.arduino});
   @override
   State<_PrecioTab> createState() => _PrecioTabState();
 }
@@ -258,7 +298,11 @@ class _PrecioTabState extends State<_PrecioTab> {
 
   Future<void> _consultar() async {
     final code = await _escanear(context);
-    if (code == null) return;
+    if (code != null) consultarCodigo(code);
+  }
+
+  /// Muestra el precio de un código (cámara o lector USB).
+  void consultarCodigo(String code) {
     final l = widget.service.buscarPorCodigo(code);
     if (l != null) {
       widget.arduino.mostrarLibro(l);
@@ -286,7 +330,7 @@ class _PrecioTabState extends State<_PrecioTab> {
             Text(_dinero(l.precio), style: Theme.of(context).textTheme.displayMedium),
             Text(l.stock > 0 ? 'Disponible: ${l.stock}' : 'Agotado'),
           ] else
-            Text(_mensaje ?? 'Escanea un código de barras para ver el precio',
+            Text(_mensaje ?? 'Escanea con el lector USB o la cámara para ver el precio',
                 textAlign: TextAlign.center),
           const SizedBox(height: 24),
           FilledButton.icon(
